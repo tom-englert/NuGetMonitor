@@ -59,11 +59,30 @@ internal static class MonitorService
 
             await LoggingService.LogAsync("Check transitive packages").ConfigureAwait(true);
 
+            var packagesReferencesByProject = packageReferences.GroupBy(item => item.ProjectItem.Project);
+            var topLevelPackagesByIdentity = topLevelPackages.ToDictionary(package => package.PackageIdentity);
+
+            foreach (var projectPackageReferences in packagesReferencesByProject)
+            {
+                foreach (var targetFramework in projectPackageReferences.Key.GetTargetFrameworks())
+                {
+                    foreach (var packageReference in projectPackageReferences)
+                    {
+                        if (topLevelPackagesByIdentity.TryGetValue(packageReference.Identity, out var packageInfo))
+                        {
+                            var dependencies = await packageInfo.GetPackageDependencyInFramework(targetFramework);
+                        }
+                    }
+                }
+            }
+
+            /*
             var transitivePackages = await NuGetService.GetTransitivePackages(packageReferences, topLevelPackages).ConfigureAwait(true);
 
             await LoggingService.LogAsync($"{transitivePackages.Count} transitive packages found").ConfigureAwait(true);
 
             InfoBarService.ShowTransitivePackageIssues(transitivePackages);
+            */
         }
         catch (Exception ex) when (ex is not (OperationCanceledException or ObjectDisposedException))
         {

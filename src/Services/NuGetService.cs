@@ -75,6 +75,12 @@ internal static class NuGetService
         return packageInfo;
     }
 
+    public static async Task<PackageInfo[]> GetPackageDependencyInFramework(this PackageInfo packageInfo, NuGetFramework targetFramework)
+    {
+        return await GetPackageDependencyInFrameworkCacheEntry(packageInfo, targetFramework).GetValue() ?? Array.Empty<PackageInfo>();
+    }
+
+    /*
     public static async Task<ICollection<PackageInfo>> GetTransitivePackages(IReadOnlyCollection<PackageReferenceEntry> packageReferences, ICollection<PackageInfo> topLevelPackages)
     {
         var inputQueue = new HashSet<PackageInfo>(topLevelPackages);
@@ -103,13 +109,14 @@ internal static class NuGetService
             inputQueue.Remove(currentItem);
 
             var packageIdentity = currentItem.PackageIdentity;
+            var session = currentItem.Session;
 
             if (ShouldSkip(packageIdentity))
                 continue;
 
             processedItems[packageIdentity.Id] = currentItem;
 
-            var (_, _, sourceRepository, session) = currentItem.Package;
+            var (_, _, sourceRepository) = currentItem.Package;
 
             var dependencyIds = await GetDirectDependencies(packageIdentity, targetFrameworks, sourceRepository, session).ConfigureAwait(true);
 
@@ -135,7 +142,7 @@ internal static class NuGetService
 
         foreach (var package in packages)
         {
-            var dependencyTasks = dependencyMap[package.PackageIdentity].Select(item => GetPackageInfoCacheEntry(item, package.Package.Session).GetValue());
+            var dependencyTasks = dependencyMap[package.PackageIdentity].Select(item => GetPackageInfoCacheEntry(item, package.Session).GetValue());
 
             var dependencies = await Task.WhenAll(dependencyTasks);
 
@@ -154,61 +161,7 @@ internal static class NuGetService
 
         return transitivePackages;
     }
-
-    private static NuGetFramework[] GetTargetFrameworks(IEnumerable<Project> projects)
-    {
-        var frameworkNames = projects.Select(project => project.GetProperty("TargetFrameworks") ?? project.GetProperty("TargetFramework"))
-            .Select(item => item?.EvaluatedValue)
-            .ExceptNullItems()
-            .SelectMany(item => item.Split(';').Select(value => value.Trim()))
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        var frameworks = frameworkNames
-            .Select(NuGetFramework.Parse)
-            .ToArray();
-
-        return frameworks;
-    }
-
-    private sealed record FrameworkSpecific(NuGetFramework TargetFramework) : IFrameworkSpecific;
-
-    private static async Task<IReadOnlyCollection<PackageIdentity>> GetDirectDependencies(PackageIdentity packageIdentity, IEnumerable<NuGetFramework> targetFrameworks, SourceRepository repository, NuGetSession session)
-    {
-        // Don't scan packages with pseudo-references, they don't get physically included, but cause vulnerability warnings.
-        if (string.Equals(packageIdentity.Id, "NETStandard.Library", StringComparison.OrdinalIgnoreCase))
-            return Array.Empty<PackageIdentity>();
-
-        var resource = await repository.GetResourceAsync<FindPackageByIdResource>();
-
-        var packageStream = new MemoryStream();
-        await resource.CopyNupkgToStreamAsync(packageIdentity.Id, packageIdentity.Version, packageStream, session.SourceCacheContext, NullLogger.Instance, session.CancellationToken);
-
-        if (packageStream.Length == 0)
-            return Array.Empty<PackageIdentity>();
-
-        packageStream.Position = 0;
-
-        using var package = new PackageArchiveReader(packageStream);
-
-        var dependencyGroups = package.GetPackageDependencies().ToArray();
-
-        var frameworksInPackage = dependencyGroups.Select(group => new FrameworkSpecific(group.TargetFramework));
-
-        var usedFrameworks = targetFrameworks
-            .Select(framework => NuGetFrameworkUtility.GetNearest(frameworksInPackage, framework)?.TargetFramework)
-            .ExceptNullItems()
-            .ToHashSet();
-
-        var dependencyIds = dependencyGroups
-            .Where(group => usedFrameworks.Contains(group.TargetFramework))
-            .SelectMany(dependencyGroup => dependencyGroup.Packages)
-            .Select(dependency => new PackageIdentity(dependency.Id,
-                dependency.VersionRange.MaxVersion ?? dependency.VersionRange.MinVersion))
-            .Distinct()
-            .ToArray();
-
-        return dependencyIds;
-    }
+    */
 
     private static async Task<PackageInfo?> GetPackageInfo(IEnumerable<PackageIdentity> packageIdentities, NuGetSession session)
     {
@@ -247,6 +200,42 @@ internal static class NuGetService
         {
             return session.Cache.GetOrCreate(packageIdentity, Factory) ??
                    throw new InvalidOperationException("Failed to get package from cache");
+        }
+    }
+
+    private sealed record PackageDependencyCacheEntryKey(PackageIdentity PackageIdentity);
+
+    private static PackageDependencyCacheEntry GetPackageDependencyCacheEntry(PackageIdentity packageIdentity, SourceRepository repository, NuGetSession session)
+    {
+        PackageDependencyCacheEntry Factory(ICacheEntry cacheEntry)
+        {
+            cacheEntry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24);
+
+            return new PackageDependencyCacheEntry(packageIdentity, repository, session);
+        }
+
+        lock (session)
+        {
+            return session.Cache.GetOrCreate(new PackageDependencyCacheEntryKey(packageIdentity), Factory) ??
+                   throw new InvalidOperationException("Failed to get package dependency from cache");
+        }
+    }
+
+    private sealed record PackageDependencyInFrameworkCacheEntryKey(PackageIdentity PackageIdentity, NuGetFramework TargetFramework);
+
+    private static PackageDependencyInFrameworkCacheEntry GetPackageDependencyInFrameworkCacheEntry(PackageInfo packageInfo, NuGetFramework targetFramework)
+    {
+        PackageDependencyInFrameworkCacheEntry Factory(ICacheEntry cacheEntry)
+        {
+            cacheEntry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24);
+
+            return new PackageDependencyInFrameworkCacheEntry(packageInfo, targetFramework);
+        }
+
+        lock (_session)
+        {
+            return _session.Cache.GetOrCreate(new PackageDependencyInFrameworkCacheEntryKey(packageInfo.PackageIdentity, targetFramework), Factory) ??
+                   throw new InvalidOperationException("Failed to get package dependency in framework from cache");
         }
     }
 
@@ -306,7 +295,7 @@ internal static class NuGetService
 
                 if (versions?.Length > 0)
                 {
-                    return new Package(packageId, versions, sourceRepository, session);
+                    return new Package(packageId, versions, sourceRepository);
                 }
             }
 
@@ -339,10 +328,82 @@ internal static class NuGetService
             var versions = package.Versions;
 
             var deprecationMetadata = await metadata.GetDeprecationMetadataAsync();
-            return new PackageInfo(packageIdentity, package, metadata.Vulnerabilities?.ToArray(), deprecationMetadata)
+            return new PackageInfo(packageIdentity, package, session, metadata.Vulnerabilities?.ToArray(), deprecationMetadata)
             {
                 IsOutdated = IsOutdated(packageIdentity, versions)
             };
         }
+    }
+
+    private sealed class PackageDependencyCacheEntry : CacheEntry<PackageDependencyGroup[]>
+    {
+        public PackageDependencyCacheEntry(PackageIdentity packageIdentity, SourceRepository repository, NuGetSession session)
+            : base(() => GetDirectDependencies(packageIdentity, repository, session))
+        {
+        }
+
+        private static async Task<PackageDependencyGroup[]?> GetDirectDependencies(PackageIdentity packageIdentity, SourceRepository repository, NuGetSession session)
+        {
+            // Don't scan packages with pseudo-references, they don't get physically included, but cause vulnerability warnings.
+            if (string.Equals(packageIdentity.Id, "NETStandard.Library", StringComparison.OrdinalIgnoreCase))
+                return Array.Empty<PackageDependencyGroup>();
+
+            var resource = await repository.GetResourceAsync<FindPackageByIdResource>();
+
+            var packageStream = new MemoryStream();
+            await resource.CopyNupkgToStreamAsync(packageIdentity.Id, packageIdentity.Version, packageStream, session.SourceCacheContext, NullLogger.Instance, session.CancellationToken);
+
+            if (packageStream.Length == 0)
+                return Array.Empty<PackageDependencyGroup>();
+
+            packageStream.Position = 0;
+
+            using var package = new PackageArchiveReader(packageStream);
+
+            var dependencyGroups = package.GetPackageDependencies().ToArray();
+
+            return dependencyGroups;
+        }
+    }
+
+    private sealed class PackageDependencyInFrameworkCacheEntry : CacheEntry<PackageInfo[]>
+    {
+        public PackageDependencyInFrameworkCacheEntry(PackageInfo packageInfo, NuGetFramework targetFramework)
+            : base(() => GetDirectDependencies(packageInfo, targetFramework))
+        {
+        }
+
+        private static async Task<PackageInfo[]?> GetDirectDependencies(PackageInfo packageInfo, NuGetFramework targetFramework)
+        {
+            var session = packageInfo.Session;
+
+            var dependencyGroups = await GetPackageDependencyCacheEntry(packageInfo.PackageIdentity, packageInfo.Package.SourceRepository, session).GetValue();
+
+            if (dependencyGroups is null)
+                return Array.Empty<PackageInfo>();
+
+            var dependencyGroup = NuGetFrameworkUtility.GetNearest(dependencyGroups, targetFramework, item => item.TargetFramework);
+            if (dependencyGroup is null)
+                return Array.Empty<PackageInfo>();
+
+            async Task<PackageInfo?> ToPackageInfo(PackageDependency packageDependency)
+            {
+                var package = await GetPackageCacheEntry(packageDependency.Id, session).GetValue();
+
+                if (package is null)
+                    return null;
+
+                var dependencyVersion = packageDependency.VersionRange.FindBestMatch(package.Versions);
+
+                var info = await GetPackageInfoCacheEntry(new PackageIdentity(package.Id, dependencyVersion), session).GetValue();
+
+                return info;
+            }
+
+            var packageInfos = await Task.WhenAll(dependencyGroup.Packages.Select(ToPackageInfo));
+
+            return packageInfos?.ExceptNullItems().ToArray();
+        }
+
     }
 }
