@@ -47,14 +47,14 @@ internal static class ProjectService
     }
 
 
-    public static NuGetFramework[] GetTargetFrameworks(this Project project)
+    public static NuGetFramework[]? GetTargetFrameworks(this Project project)
     {
         var frameworkNames = (project.GetProperty("TargetFrameworks") ?? project.GetProperty("TargetFramework"))
             ?.EvaluatedValue
             ?.Split(';')
             .Select(value => value.Trim());
 
-        var frameworks = frameworkNames
+        var frameworks = frameworkNames?
             .Select(NuGetFramework.Parse)
             .Distinct()
             .ToArray();

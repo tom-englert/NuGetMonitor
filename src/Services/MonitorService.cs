@@ -1,5 +1,8 @@
 ﻿using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
+using NuGet.Packaging.Core;
+using NuGetMonitor.Models;
+using TomsToolbox.Essentials;
 
 namespace NuGetMonitor.Services;
 
@@ -59,22 +62,14 @@ internal static class MonitorService
 
             await LoggingService.LogAsync("Check transitive packages").ConfigureAwait(true);
 
-            var packagesReferencesByProject = packageReferences.GroupBy(item => item.ProjectItem.Project);
-            var topLevelPackagesByIdentity = topLevelPackages.ToDictionary(package => package.PackageIdentity);
+            var transitivePackages = await NuGetService.GetTransitivePackages(packageReferences, topLevelPackages).ConfigureAwait(true);
 
-            foreach (var projectPackageReferences in packagesReferencesByProject)
-            {
-                foreach (var targetFramework in projectPackageReferences.Key.GetTargetFrameworks())
-                {
-                    foreach (var packageReference in projectPackageReferences)
-                    {
-                        if (topLevelPackagesByIdentity.TryGetValue(packageReference.Identity, out var packageInfo))
-                        {
-                            var dependencies = await packageInfo.GetPackageDependencyInFramework(targetFramework);
-                        }
-                    }
-                }
-            }
+            var numberOfPackages = transitivePackages
+                .SelectMany(project => project.Packages)
+                .Distinct()
+                .Count();
+
+            await LoggingService.LogAsync($"{numberOfPackages} transitive packages found").ConfigureAwait(true);
 
             /*
             var transitivePackages = await NuGetService.GetTransitivePackages(packageReferences, topLevelPackages).ConfigureAwait(true);

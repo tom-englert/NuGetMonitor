@@ -80,88 +80,161 @@ internal static class NuGetService
         return await GetPackageDependencyInFrameworkCacheEntry(packageInfo, targetFramework).GetValue() ?? Array.Empty<PackageInfo>();
     }
 
-    /*
-    public static async Task<ICollection<PackageInfo>> GetTransitivePackages(IReadOnlyCollection<PackageReferenceEntry> packageReferences, ICollection<PackageInfo> topLevelPackages)
+    public record TransitiveDependencies(Project Project, NuGetFramework TargetFramework, ICollection<PackageInfo> Packages, Dictionary<PackageInfo, HashSet<PackageInfo>> DependencyMap);
+
+    public static async Task<ICollection<TransitiveDependencies>> GetTransitivePackages(IReadOnlyCollection<PackageReferenceEntry> packageReferences, ICollection<PackageInfo> topLevelPackages)
     {
-        var inputQueue = new HashSet<PackageInfo>(topLevelPackages);
+        var results = new List<TransitiveDependencies>();
 
-        var dependencyMap = new Dictionary<PackageIdentity, HashSet<PackageIdentity>>();
+        var packagesReferencesByProject = packageReferences.GroupBy(item => item.ProjectItem.Project);
+        var topLevelPackagesByIdentity = topLevelPackages.ToDictionary(package => package.PackageIdentity);
 
-        var processedItems = new Dictionary<string, PackageInfo>();
-
-        var projects = packageReferences
-            .Select(reference => reference.ProjectItem.Project)
-            .Distinct();
-
-        // Limit scan to the superset of all target frameworks, to avoid too many false positives.
-        var targetFrameworks = GetTargetFrameworks(projects);
-
-        bool ShouldSkip(PackageIdentity identity)
+        foreach (var projectPackageReferences in packagesReferencesByProject)
         {
-            if (!processedItems.TryGetValue(identity.Id, out var existing))
-                return false;
+            var project = projectPackageReferences.Key;
 
-            return existing.PackageIdentity.Version >= identity.Version;
-        }
-
-        while (inputQueue.FirstOrDefault() is { } currentItem)
-        {
-            inputQueue.Remove(currentItem);
-
-            var packageIdentity = currentItem.PackageIdentity;
-            var session = currentItem.Session;
-
-            if (ShouldSkip(packageIdentity))
+            var targetFrameworks = project.GetTargetFrameworks();
+            if (targetFrameworks is null)
+            {
+                await LoggingService.LogAsync($"No target framework found in project {Path.GetFileName(project.FullPath)} (old project format?) - skipping transitive package analysis.");
                 continue;
-
-            processedItems[packageIdentity.Id] = currentItem;
-
-            var (_, _, sourceRepository) = currentItem.Package;
-
-            var dependencyIds = await GetDirectDependencies(packageIdentity, targetFrameworks, sourceRepository, session).ConfigureAwait(true);
-
-            var packageDependencies = dependencyMap.ForceValue(packageIdentity, _ => new HashSet<PackageIdentity>());
-
-            foreach (var dependencyId in dependencyIds)
-            {
-                packageDependencies.Add(dependencyId);
-
-                if (ShouldSkip(dependencyId))
-                    continue;
-
-                if (await GetPackageInfoCacheEntry(dependencyId, session).GetValue() is not { } info)
-                    continue;
-
-                inputQueue.Add(info);
             }
 
-            session.ThrowIfCancellationRequested();
-        }
-
-        var packages = processedItems.Values;
-
-        foreach (var package in packages)
-        {
-            var dependencyTasks = dependencyMap[package.PackageIdentity].Select(item => GetPackageInfoCacheEntry(item, package.Session).GetValue());
-
-            var dependencies = await Task.WhenAll(dependencyTasks);
-
-            package.Dependencies = dependencies.ExceptNullItems().ToArray();
-        }
-
-        foreach (var item in packages)
-        {
-            foreach (var dependency in item.Dependencies)
+            foreach (var targetFramework in targetFrameworks)
             {
-                dependency.DependsOn.Add(item);
+                var inputQueue = new List<PackageInfo>();
+                var dependencyMap = new Dictionary<PackageInfo, HashSet<PackageInfo>>();
+                var processedItems = new Dictionary<string, PackageInfo>();
+
+                bool ShouldSkip(PackageIdentity identity)
+                {
+                    if (!processedItems.TryGetValue(identity.Id, out var existing))
+                        return false;
+
+                    return existing.PackageIdentity.Version >= identity.Version;
+                }
+
+                foreach (var packageReference in projectPackageReferences)
+                {
+                    if (topLevelPackagesByIdentity.TryGetValue(packageReference.Identity, out var packageInfo))
+                    {
+                        inputQueue.Add(packageInfo);
+                    }
+                }
+
+                while (inputQueue.Count > 0)
+                {
+                    var packageInfo = inputQueue[0];
+                    inputQueue.RemoveAt(0);
+
+                    var packageIdentity = packageInfo.PackageIdentity;
+
+                    if (ShouldSkip(packageIdentity))
+                        continue;
+
+                    processedItems[packageIdentity.Id] = packageInfo;
+
+                    var dependencies = await packageInfo.GetPackageDependencyInFramework(targetFramework);
+
+                    foreach (var dependency in dependencies)
+                    {
+                        dependencyMap.ForceValue(dependency, _ => new HashSet<PackageInfo>()).Add(packageInfo);
+                    }
+
+                    inputQueue.AddRange(dependencies);
+                }
+
+                var transitivePackages = processedItems.Values.Except(topLevelPackages).ToArray();
+
+                results.Add(new TransitiveDependencies(project, targetFramework, transitivePackages, dependencyMap));
             }
         }
 
-        var transitivePackages = packages.Except(topLevelPackages).ToArray();
-
-        return transitivePackages;
+        return results;
     }
-    */
+
+    /*
+        public static async Task<ICollection<PackageInfo>> GetTransitivePackages(IReadOnlyCollection<PackageReferenceEntry> packageReferences, ICollection<PackageInfo> topLevelPackages)
+        {
+            var inputQueue = new HashSet<PackageInfo>(topLevelPackages);
+
+            var dependencyMap = new Dictionary<PackageIdentity, HashSet<PackageIdentity>>();
+
+            var processedItems = new Dictionary<string, PackageInfo>();
+
+            var projects = packageReferences
+                .Select(reference => reference.ProjectItem.Project)
+                .Distinct();
+
+            // Limit scan to the superset of all target frameworks, to avoid too many false positives.
+            var targetFrameworks = GetTargetFrameworks(projects);
+
+            bool ShouldSkip(PackageIdentity identity)
+            {
+                if (!processedItems.TryGetValue(identity.Id, out var existing))
+                    return false;
+
+                return existing.PackageIdentity.Version >= identity.Version;
+            }
+
+            while (inputQueue.FirstOrDefault() is { } currentItem)
+            {
+                inputQueue.Remove(currentItem);
+
+                var packageIdentity = currentItem.PackageIdentity;
+                var session = currentItem.Session;
+
+                if (ShouldSkip(packageIdentity))
+                    continue;
+
+                processedItems[packageIdentity.Id] = currentItem;
+
+                var (_, _, sourceRepository) = currentItem.Package;
+
+                var dependencyIds = await GetDirectDependencies(packageIdentity, targetFrameworks, sourceRepository, session).ConfigureAwait(true);
+
+                var packageDependencies = dependencyMap.ForceValue(packageIdentity, _ => new HashSet<PackageIdentity>());
+
+                foreach (var dependencyId in dependencyIds)
+                {
+                    packageDependencies.Add(dependencyId);
+
+                    if (ShouldSkip(dependencyId))
+                        continue;
+
+                    if (await GetPackageInfoCacheEntry(dependencyId, session).GetValue() is not { } info)
+                        continue;
+
+                    inputQueue.Add(info);
+                }
+
+                session.ThrowIfCancellationRequested();
+            }
+
+            var packages = processedItems.Values;
+
+            foreach (var package in packages)
+            {
+                var dependencyTasks = dependencyMap[package.PackageIdentity].Select(item => GetPackageInfoCacheEntry(item, package.Session).GetValue());
+
+                var dependencies = await Task.WhenAll(dependencyTasks);
+
+                package.Dependencies = dependencies.ExceptNullItems().ToArray();
+            }
+
+            foreach (var item in packages)
+            {
+                foreach (var dependency in item.Dependencies)
+                {
+                    dependency.DependsOn.Add(item);
+                }
+            }
+
+            var transitivePackages = packages.Except(topLevelPackages).ToArray();
+
+            return transitivePackages;
+        }
+        */
 
     private static async Task<PackageInfo?> GetPackageInfo(IEnumerable<PackageIdentity> packageIdentities, NuGetSession session)
     {
