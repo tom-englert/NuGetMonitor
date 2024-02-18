@@ -195,15 +195,15 @@ public static class ProjectService
         var version = projectItem.GetVersion() ?? projectItem.GetVersionOverride();
         var project = projectItemInTargetFramework.Project;
 
-        if (version is null && project.CentralVersionMap.TryGetValue(id, out versionSource))
+        if (version is null && project.CentralVersionMap.TryGetValue(id, out var mappedVersion))
         {
+            versionSource = mappedVersion;
             version = versionSource.GetVersion();
         }
 
-        // ! versionSource is checked above.
         return version is null
             ? null
-            : new PackageReferenceEntry(id, version, versionSource!, projectItemInTargetFramework, projectItem.GetMetadataValue("Justification"));
+            : new PackageReferenceEntry(id, version, versionSource, projectItemInTargetFramework, projectItem.GetMetadataValue("Justification"));
     }
 
     internal static bool IsTrue(this ProjectProperty? property)

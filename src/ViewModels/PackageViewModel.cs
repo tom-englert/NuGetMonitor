@@ -41,8 +41,7 @@ namespace NuGetMonitor.View
 
         public ICommand UpdateCommand => new DelegateCommand(() => IsUpdateAvailable, () => { NuGetMonitorViewModel.Update(this); });
 
-        // ! ProjectUrl is checked in CanExecute
-        public ICommand OpenProjectUrlCommand => new DelegateCommand(() => PackageInfo?.ProjectUrl != null, () => Process.Start(PackageInfo!.ProjectUrl.AbsoluteUri));
+        public ICommand OpenProjectUrlCommand => new DelegateCommand(() => PackageInfo?.ProjectUrl != null, OpenProjectUrl);
 
         public PackageInfo? PackageInfo { get; private set; }
 
@@ -106,6 +105,15 @@ namespace NuGetMonitor.View
             {
                 // session cancelled
             }
+        }
+
+        private void OpenProjectUrl()
+        {
+            var projectUrl = PackageInfo?.ProjectUrl;
+            if (projectUrl == null)
+                return;
+
+            Process.Start(projectUrl.AbsoluteUri);
         }
     }
 }
