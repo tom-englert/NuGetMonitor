@@ -1,0 +1,90 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:NuGetMonitor.Standalone"
+        x:Class="NuGetMonitor.Standalone.MainWindow"
+        x:DataType="local:MainViewModel"
+        mc:Ignorable="d"
+        Title="NuGet Monitor"
+        Width="1000" Height="650">
+
+  <DockPanel>
+
+    <!-- Toolbar -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4" Margin="4">
+      <Button Content="📂 Open Solution…" Command="{Binding BrowseCommand}" />
+      <Button Content="🔄 Refresh" Command="{Binding RefreshCommand}" />
+      <TextBlock Text="{Binding SolutionPath}" VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" MaxWidth="500" Foreground="Gray" />
+    </StackPanel>
+
+    <!-- Status bar -->
+    <Border DockPanel.Dock="Bottom" Background="#1E1E1E" Padding="6,3">
+      <TextBlock Text="{Binding StatusMessage}" Foreground="White" FontSize="12" />
+    </Border>
+
+    <!-- Loading overlay -->
+    <Grid>
+      <DataGrid ItemsSource="{Binding Packages}"
+                x:DataType="local:MainViewModel"
+                AutoGenerateColumns="False"
+                IsReadOnly="True"
+                GridLinesVisibility="Horizontal"
+                CanUserResizeColumns="True"
+                CanUserSortColumns="True">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Package"
+                              Binding="{ReflectionBinding PackageId}"
+                              Width="300" />
+          <DataGridTextColumn Header="Installed Version"
+                              Binding="{ReflectionBinding InstalledVersion}"
+                              Width="140" />
+          <DataGridTemplateColumn Header="Available Version" Width="160">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="local:PackageRowViewModel">
+                <Grid>
+                  <TextBlock Text="{Binding SelectedVersion}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             IsVisible="{Binding !IsLoading}" />
+                  <TextBlock Text="Loading…"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             Foreground="Gray"
+                             IsVisible="{Binding IsLoading}" />
+                </Grid>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Update" Width="90">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="local:PackageRowViewModel">
+                <TextBlock Text="⬆"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="14"
+                           Foreground="Green"
+                           ToolTip.Tip="Update available"
+                           IsVisible="{Binding IsUpdateAvailable}" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Issues"
+                              Binding="{ReflectionBinding Issues}"
+                              Width="*" />
+        </DataGrid.Columns>
+      </DataGrid>
+
+      <Border IsVisible="{Binding IsLoading}"
+              Background="#80000000"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+          <TextBlock Text="Loading packages…" Foreground="White" FontSize="16" HorizontalAlignment="Center" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+  </DockPanel>
+</Window>
