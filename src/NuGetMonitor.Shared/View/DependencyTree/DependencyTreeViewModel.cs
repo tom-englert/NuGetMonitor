@@ -10,8 +10,6 @@ using NuGetMonitor.Model.Models;
 using NuGetMonitor.Model.Services;
 using PropertyChanged;
 using Throttle;
-using TomsToolbox.Essentials;
-using TomsToolbox.Wpf;
 
 namespace NuGetMonitor.View.DependencyTree;
 

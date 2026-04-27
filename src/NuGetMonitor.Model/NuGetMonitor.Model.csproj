@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.Build" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
-    <PackageReference Include="NuGet.Protocol" ExcludeAssets="runtime" />
+    <PackageReference Include="NuGet.Protocol" ExcludeAssets="runtime" Justification="Provided with MSBuild" />
     <PackageReference Include="TomsToolbox.Essentials" />
     <PackageReference Include="ConfigureAwait.Fody" PrivateAssets="all" />
     <PackageReference Include="Fody" PrivateAssets="all" />

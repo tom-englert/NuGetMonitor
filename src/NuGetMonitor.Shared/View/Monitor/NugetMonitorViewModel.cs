@@ -10,8 +10,6 @@ using NuGetMonitor.Model;
 using NuGetMonitor.Model.Models;
 using NuGetMonitor.Model.Services;
 using NuGetMonitor.ViewModels;
-using TomsToolbox.Essentials;
-using TomsToolbox.Wpf;
 
 namespace NuGetMonitor.View.Monitor;
 

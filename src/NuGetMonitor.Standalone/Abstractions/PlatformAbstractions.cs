@@ -1,43 +1,83 @@
-﻿using NuGetMonitor.View.Monitor;
-using System.Windows.Input;
-using TomsToolbox.Essentials;
-using TomsToolbox.Wpf;
+﻿using Microsoft.Build.Construction;
 
 namespace NuGetMonitor.Abstractions;
 
 internal static class PlatformAbstractions
 {
-    static PlatformAbstractions()
+    private static string? _solutionPath;
+
+    public static void OpenSolution(string? solutionFilePath)
     {
+        if (_solutionPath is not null)
+        {
+            SolutionClosed?.Invoke(null, EventArgs.Empty);
+        }
+
+        _solutionPath = solutionFilePath;
+
+        if (solutionFilePath is not null)
+        {
+            SolutionOpened?.Invoke(null, EventArgs.Empty);
+        }
     }
 
     public static void OpenDocument(string path)
     {
-        throw new NotImplementedException();
+        // In standalone mode, we could open files with the default application
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Ignore errors if file cannot be opened
+        }
     }
 
     public static async Task<ICollection<string>> GetProjectFilePaths()
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrEmpty(_solutionPath) || !File.Exists(_solutionPath))
+        {
+            return [];
+        }
+
+        return await Task.Run(ICollection<string> () =>
+        {
+            try
+            {
+                var solutionFile = SolutionFile.Parse(_solutionPath);
+
+                var solutionDirectory = Path.GetDirectoryName(_solutionPath) ?? string.Empty;
+
+                var projectPaths = solutionFile.ProjectsInOrder
+                    .Where(p => p.ProjectType == SolutionProjectType.KnownToBeMSBuildFormat)
+                    .Select(p => Path.GetFullPath(Path.Combine(solutionDirectory, p.RelativePath)))
+                    .Where(File.Exists)
+                    .ToArray();
+
+                return projectPaths;
+            }
+            catch
+            {
+                return [];
+            }
+        });
     }
 
     public static event EventHandler? SolutionOpened;
 
     public static event EventHandler? SolutionClosed;
 
-    public static void ShowPackageManager()
-    {
-        throw new NotImplementedException();
-    }
-
     public static async Task ShowInfoBar(string message)
     {
-        throw new NotImplementedException();
-    }
-
-    public static string? GetCurrentSolutionFilePath()
-    {
-        throw new NotImplementedException();
+        // In standalone mode, we could show this in a message box or status bar
+        // For now, just log to console
+        await Task.CompletedTask;
+        Console.WriteLine($"InfoBar: {message}");
     }
 
     public static void FireAndForget(this System.Threading.Tasks.Task task, bool logOnFailure = true)
@@ -47,10 +87,5 @@ internal static class PlatformAbstractions
 
     public static void Forget(this Task? task)
     {
-    }
-
-    public static void CloseInfoBars()
-    {
-        throw new NotImplementedException();
     }
 }

@@ -2,4 +2,6 @@
 
 global using NuGetMonitor.Abstractions;
 global using Avalonia.Controls;
-global using Avalonia.Threading;
+
+global using TomsToolbox.Wpf;
+global using TomsToolbox.Essentials;

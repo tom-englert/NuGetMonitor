@@ -9,7 +9,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RootNamespace>NuGetMonitor</RootNamespace>
-    <AssemblyName>NuGetMonitor.Standalone</AssemblyName>
+    <AssemblyName>NuGetMonitor</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +17,6 @@
     <PackageReference Include="Avalonia.Controls.DataGrid" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
-    <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Build.Locator" />
     <PackageReference Include="TomsToolbox.Avalonia" />
     <PackageReference Include="TomsToolbox.Essentials" />
@@ -31,7 +30,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\NugetMonitor.Shared\**\*.cs" Link="%(RecursiveDir)%(Filename)%(Extension)" Exclude="**\DependencyTreeViewModel.cs"/>
+    <Compile Include="..\NugetMonitor.Shared\**\*.cs" Link="%(RecursiveDir)%(Filename)%(Extension)" Exclude="**\DependencyTreeViewModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Infrastructure\" />
   </ItemGroup>
 
 </Project>

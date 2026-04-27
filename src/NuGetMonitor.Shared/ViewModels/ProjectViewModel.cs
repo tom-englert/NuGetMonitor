@@ -2,7 +2,6 @@
 using System.Windows.Input;
 using Microsoft.Build.Construction;
 using NuGetMonitor.Abstractions;
-using TomsToolbox.Wpf;
 
 namespace NuGetMonitor.ViewModels;
 

@@ -1,7 +1,7 @@
 using Avalonia;
 using Microsoft.Build.Locator;
 
-namespace NuGetMonitor.Standalone;
+namespace NuGetMonitor;
 
 internal static class Program
 {

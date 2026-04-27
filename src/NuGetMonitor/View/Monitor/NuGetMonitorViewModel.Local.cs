@@ -7,7 +7,6 @@ using DataGridExtensions;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
 using NuGetMonitor.Services;
-using TomsToolbox.Wpf;
 
 namespace NuGetMonitor.View.Monitor;
 

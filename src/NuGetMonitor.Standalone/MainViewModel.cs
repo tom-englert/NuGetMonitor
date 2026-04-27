@@ -1,118 +1,30 @@
-using System.Collections.ObjectModel;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using Microsoft.Build.Construction;
-using NuGetMonitor.Model.Services;
+using System.ComponentModel;
+using System.Windows.Input;
+using NuGetMonitor.View.Monitor;
 
-namespace NuGetMonitor.Standalone;
+namespace NuGetMonitor;
 
-public sealed partial class MainViewModel : ObservableObject
+internal sealed partial class MainViewModel : INotifyPropertyChanged
 {
-    [ObservableProperty]
-    private string? _solutionPath;
+    public bool IsLoading { get; private set; }
 
-    [ObservableProperty]
-    private bool _isLoading;
+    public string? SolutionPath { get; private set; }
 
-    [ObservableProperty]
-    private string? _statusMessage;
+    public string? StatusMessage { get; private set; }
 
-    public ObservableCollection<PackageRowViewModel> Packages { get; } = new();
+    public object? NuGetMonitorViewModel { get; } = new NuGetMonitorViewModel();
 
-    public event EventHandler? BrowseRequested;
+    public ICommand BrowseCommand => new DelegateCommand(() => BrowseRequested?.Invoke(this, EventArgs.Empty));
 
-    public MainViewModel(string? solutionPath)
-    {
-        _solutionPath = solutionPath;
+    internal EventHandler? BrowseRequested;
 
-        if (!string.IsNullOrWhiteSpace(solutionPath))
-            LoadAsync().ConfigureAwait(false);
-    }
-
-    [RelayCommand]
-    private void Browse()
-    {
-        BrowseRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    [RelayCommand]
-    private async Task RefreshAsync()
-    {
-        await LoadAsync();
-    }
-
-    public async Task LoadSolutionAsync(string path)
+    internal async Task LoadSolutionAsync(string? path)
     {
         SolutionPath = path;
-        await LoadAsync();
-    }
+        StatusMessage = string.IsNullOrEmpty(path) ? "No solution loaded" : $"Loaded: {path}";
 
-    private async Task LoadAsync()
-    {
-        if (string.IsNullOrWhiteSpace(SolutionPath) || !File.Exists(SolutionPath))
-        {
-            StatusMessage = "No solution file selected.";
-            return;
-        }
+        PlatformAbstractions.OpenSolution(path);
 
-        if (IsLoading)
-            return;
-
-        try
-        {
-            IsLoading = true;
-            StatusMessage = "Loading…";
-            Packages.Clear();
-
-            var solutionFolder = Path.GetDirectoryName(SolutionPath);
-
-            NuGetService.Reset(solutionFolder);
-            ProjectService.ClearCache();
-
-            var projectPaths = GetProjectPaths(SolutionPath);
-
-            var packageReferences = await ProjectService.GetPackageReferences(projectPaths);
-
-            var rows = packageReferences
-                .GroupBy(item => item.Identity)
-                .Select(group =>
-                {
-                    var key = group.Key;
-                    var installed = key.VersionRange.OriginalString;
-                    return new PackageRowViewModel(key, installed);
-                })
-                .ToArray();
-
-            foreach (var row in rows)
-                Packages.Add(row);
-
-            StatusMessage = $"Loaded {rows.Length} packages.";
-
-            IsLoading = false;
-
-            await Task.WhenAll(rows.Select(r => r.LoadAsync()));
-
-            StatusMessage = $"{rows.Length} packages — {rows.Count(r => r.IsUpdateAvailable)} update(s) available.";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    private static string[] GetProjectPaths(string solutionPath)
-    {
-        var solution = SolutionFile.Parse(solutionPath);
-        var solutionDir = Path.GetDirectoryName(solutionPath) ?? string.Empty;
-
-        return solution.ProjectsInOrder
-            .Where(p => p.ProjectType == SolutionProjectType.KnownToBeMSBuildFormat)
-            .Select(p => Path.IsPathRooted(p.AbsolutePath) ? p.AbsolutePath : Path.Combine(solutionDir, p.RelativePath))
-            .Where(File.Exists)
-            .ToArray();
+        await Task.CompletedTask;
     }
 }

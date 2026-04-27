@@ -6,7 +6,6 @@ using NuGetMonitor.Model.Models;
 using NuGetMonitor.Model.Services;
 using NuGetMonitor.View.Monitor;
 using PropertyChanged;
-using TomsToolbox.Wpf;
 
 using Package = NuGetMonitor.Model.Models.Package;
 

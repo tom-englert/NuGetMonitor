@@ -3,7 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using PropertyChanged;
 
-namespace NuGetMonitor.Standalone;
+namespace NuGetMonitor;
 
 [DoNotNotify]
 public class App : Application
@@ -22,7 +22,7 @@ public class App : Application
 
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainViewModel(solutionPath)
+                DataContext = new MainViewModel()
             };
         }
 
