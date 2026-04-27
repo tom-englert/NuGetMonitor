@@ -10,7 +10,7 @@ on:
 env:
   version: '1.6.${{ github.run_number }}'
   repoUrl: ${{ github.server_url }}/${{ github.repository }}
-  vsixBuildPath: ${{ github.workspace }}/src/NuGetMonitor/bin/release/net48/win/NuGetMonitor.vsix
+  vsixBuildPath: ${{ github.workspace }}/src/NuGetMonitor/bin/release/net4.8/win/NuGetMonitor.vsix
   publishManifestPath: publish-manifest.json
 
 jobs:
