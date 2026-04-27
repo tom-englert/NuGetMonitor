@@ -1,39 +1,32 @@
 ﻿using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
-using NuGetMonitor.Abstractions;
+using NuGetMonitor.Model.Services;
+using NuGetMonitor.Services;
 using NuGetMonitor.View.Monitor;
 using TomsToolbox.Essentials;
 
-namespace NuGetMonitor.Services;
+namespace NuGetMonitor.Abstractions;
 
-internal sealed class SolutionService : ISolutionService
+internal static class PlatformAbstractions
 {
-    private SolutionService()
+    static PlatformAbstractions()
     {
         VS.Events.SolutionEvents.OnAfterOpenSolution += SolutionEvents_OnAfterOpenSolution;
         VS.Events.SolutionEvents.OnAfterCloseSolution += SolutionEvents_OnAfterCloseSolution;
+        VS.Events.ShellEvents.ShutdownStarted += NuGetService.Shutdown;
     }
 
-    public static readonly ISolutionService Instance = new SolutionService();
-
-    private void SolutionEvents_OnAfterCloseSolution()
+    public static void OpenDocument(string path)
     {
-        SolutionClosed?.Invoke(this, EventArgs.Empty);
+        VS.Documents.OpenAsync(path).FireAndForget();
     }
 
-    private void SolutionEvents_OnAfterOpenSolution(Solution? obj)
+    public static string? GetCurrentSolutionFilePath()
     {
-        SolutionOpened?.Invoke(this, EventArgs.Empty);
+        return VS.Solutions.GetCurrentSolution()?.FullPath;
     }
 
-    public async Task<string?> GetSolutionFolder()
-    {
-        var solution = await VS.Solutions.GetCurrentSolutionAsync();
-
-        return solution?.FullPath;
-    }
-
-    public async Task<ICollection<string>> GetProjectFilePaths()
+    public static async Task<ICollection<string>> GetProjectFilePaths()
     {
         var projects = await VS.Solutions.GetAllProjectsAsync();
 
@@ -44,16 +37,26 @@ internal sealed class SolutionService : ISolutionService
         return filePaths;
     }
 
-    public event EventHandler? SolutionOpened;
+    private static void SolutionEvents_OnAfterCloseSolution()
+    {
+        SolutionClosed?.Invoke(null, EventArgs.Empty);
+    }
 
-    public event EventHandler? SolutionClosed;
+    private static void SolutionEvents_OnAfterOpenSolution(Solution? obj)
+    {
+        SolutionOpened?.Invoke(null, EventArgs.Empty);
+    }
 
-    public void ShowPackageManager()
+    public static event EventHandler? SolutionOpened;
+
+    public static event EventHandler? SolutionClosed;
+
+    public static void ShowPackageManager()
     {
         VS.Commands.ExecuteAsync("Tools.ManageNuGetPackagesForSolution").FireAndForget();
     }
 
-    public async Task ShowInfoBar(string message)
+    public static async Task ShowInfoBar(string message)
     {
         var model = new InfoBarModel(message);
         var infoBar = await VS.InfoBar.CreateAsync(NuGetMonitorToolWindow.Id, model).ConfigureAwait(true) ?? throw new InvalidOperationException("Failed to create the info bar");
@@ -64,8 +67,8 @@ internal sealed class SolutionService : ISolutionService
         infoBar.Close();
     }
 
-    public void OpenDocument(string path)
+    public static void CloseInfoBars()
     {
-        VS.Documents.OpenAsync(path).FireAndForget();
+        InfoBarService.CloseInfoBars();
     }
 }

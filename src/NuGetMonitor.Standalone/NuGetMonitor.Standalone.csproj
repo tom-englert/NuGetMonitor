@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,7 +8,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <RootNamespace>NuGetMonitor.Standalone</RootNamespace>
+    <RootNamespace>NuGetMonitor</RootNamespace>
     <AssemblyName>NuGetMonitor.Standalone</AssemblyName>
   </PropertyGroup>
 
@@ -19,10 +19,20 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Build.Locator" />
+    <PackageReference Include="TomsToolbox.Avalonia" />
+    <PackageReference Include="TomsToolbox.Essentials" />
+    <PackageReference Include="Fody" PrivateAssets="all" />
+    <PackageReference Include="PropertyChanged.Fody" PrivateAssets="all" />
+    <PackageReference Include="Throttle.Fody" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NuGetMonitor.Model\NuGetMonitor.Model.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\NugetMonitor.Shared\**\*.cs" Link="%(RecursiveDir)%(Filename)%(Extension)" Exclude="**\DependencyTreeViewModel.cs"/>
+  </ItemGroup>
+
 </Project>
+  

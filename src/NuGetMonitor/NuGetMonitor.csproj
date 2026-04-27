@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net4.8</TargetFramework>
+    <TargetFrameworks>net48</TargetFrameworks>
     <UseWPF>true</UseWPF>
     <OutputType>Library</OutputType>
     <RuntimeIdentifier>win</RuntimeIdentifier>
@@ -25,7 +25,7 @@
     <PackageReference Include="VSIX-SdkProjectAdapter" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\NugetMonitor.Shared\**\*.cs" Link="%(RecursiveDir)%(Filename)%(Extension)"/>
+    <Compile Include="..\NugetMonitor.Shared\**\*.cs" Link="%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\LICENSE">

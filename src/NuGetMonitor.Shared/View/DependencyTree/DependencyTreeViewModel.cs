@@ -3,7 +3,6 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Microsoft.VisualStudio.Shell;
 using NuGet.Frameworks;
 using NuGet.Packaging.Core;
 using NuGetMonitor.Abstractions;
@@ -27,14 +26,12 @@ internal sealed partial class ChildNode : INotifyPropertyChanged
 {
     private readonly PackageInfo _packageInfo;
     private readonly TransitiveDependencies _transitiveDependencies;
-    private readonly ISolutionService _solutionService;
     private readonly HashSet<PackageInfo>? _dependsOn;
 
-    public ChildNode(PackageInfo packageInfo, TransitiveDependencies transitiveDependencies, ISolutionService solutionService)
+    public ChildNode(PackageInfo packageInfo, TransitiveDependencies transitiveDependencies)
     {
         _packageInfo = packageInfo;
         _transitiveDependencies = transitiveDependencies;
-        _solutionService = solutionService;
 
         transitiveDependencies.TransitivePackages.TryGetParents(packageInfo, out _dependsOn);
     }
@@ -43,7 +40,7 @@ internal sealed partial class ChildNode : INotifyPropertyChanged
 
     public IEnumerable<ChildNode>? Children => _dependsOn?
         .OrderBy(item => item.PackageIdentity)
-        .Select(item => new ChildNode(item, _transitiveDependencies, _solutionService));
+        .Select(item => new ChildNode(item, _transitiveDependencies));
 
     public bool HasChildren => _dependsOn != null;
 
@@ -80,7 +77,7 @@ internal sealed partial class ChildNode : INotifyPropertyChanged
 
         if (node == PackageNode.PackageReference)
         {
-            _solutionService.OpenDocument(_transitiveDependencies.ProjectFullPath);
+            PlatformAbstractions.OpenDocument(_transitiveDependencies.ProjectFullPath);
         }
     }
 
@@ -111,13 +108,13 @@ internal sealed partial class RootNode : INotifyPropertyChanged
     private readonly TransitiveDependencies _transitiveDependencies;
     private readonly ListCollectionView _children;
 
-    public RootNode(TransitiveDependencies transitiveDependencies, ISolutionService solutionService)
+    public RootNode(TransitiveDependencies transitiveDependencies)
     {
         _transitiveDependencies = transitiveDependencies;
 
         var children = _transitiveDependencies.TransitivePackages
             .OrderBy(item => item.PackageIdentity)
-            .Select(item => new ChildNode(item, _transitiveDependencies, solutionService))
+            .Select(item => new ChildNode(item, _transitiveDependencies))
             .ToArray();
 
         _children = new ListCollectionView(children);
@@ -155,14 +152,10 @@ internal sealed partial class RootNode : INotifyPropertyChanged
 #pragma warning disable CA1812 // Avoid uninstantiated internal classes => used in xaml!
 internal sealed partial class DependencyTreeViewModel : INotifyPropertyChanged
 {
-    private readonly ISolutionService _solutionService;
-
-    public DependencyTreeViewModel(ISolutionService solutionService)
+    public DependencyTreeViewModel()
     {
-        _solutionService = solutionService;
-
-        solutionService.SolutionOpened += SolutionEvents_OnAfterOpenSolution;
-        solutionService.SolutionClosed += SolutionEvents_OnAfterCloseSolution;
+        PlatformAbstractions.SolutionOpened += SolutionEvents_OnAfterOpenSolution;
+        PlatformAbstractions.SolutionClosed += SolutionEvents_OnAfterCloseSolution;
 
 #pragma warning disable VSTHRD001
 #pragma warning disable VSTHRD110
@@ -216,7 +209,7 @@ internal sealed partial class DependencyTreeViewModel : INotifyPropertyChanged
         {
             IsLoading = true;
 
-            var projectFilePaths = await _solutionService.GetProjectFilePaths();
+            var projectFilePaths = await PlatformAbstractions.GetProjectFilePaths();
 
             var packageReferences = await ProjectService.GetPackageReferences(projectFilePaths).ConfigureAwait(true);
 
@@ -230,7 +223,7 @@ internal sealed partial class DependencyTreeViewModel : INotifyPropertyChanged
             TransitivePackages = transitivePackages
                 .OrderBy(item => item.ProjectName)
                 .ThenBy(item => item.TargetFramework.ToString())
-                .Select(item => new RootNode(item, _solutionService))
+                .Select(item => new RootNode(item))
                 .ToArray();
 
             OnSearchTextChanged();

@@ -29,8 +29,20 @@ internal static class MonitorService
     private static void Reset()
     {
         InfoBarService.CloseInfoBars();
-        NuGetService.Reset(VS.Solutions.GetCurrentSolution()?.FullPath);
+        NuGetService.Reset(GetCurrentSolution()?.FullPath);
         ProjectService.ClearCache();
+    }
+
+    private static Solution? GetCurrentSolution()
+    {
+        try
+        {
+            return VS.Solutions.GetCurrentSolution();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static void SolutionEvents_OnAfterOpenSolution(Solution? solution) => CheckForUpdates();

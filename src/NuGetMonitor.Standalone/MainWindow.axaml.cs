@@ -1,8 +1,9 @@
-using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using PropertyChanged;
 
 namespace NuGetMonitor.Standalone;
 
+[DoNotNotify]
 public partial class MainWindow : Window
 {
     public MainWindow()

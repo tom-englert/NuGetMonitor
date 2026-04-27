@@ -1,9 +1,11 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using PropertyChanged;
 
 namespace NuGetMonitor.Standalone;
 
+[DoNotNotify]
 public class App : Application
 {
     public override void Initialize()

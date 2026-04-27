@@ -1,6 +1,4 @@
-﻿using NuGetMonitor.Services;
-
-namespace NuGetMonitor.View.DependencyTree;
+﻿namespace NuGetMonitor.View.DependencyTree;
 
 /// <summary>
 /// Interaction logic for DependencyTreeControl.xaml
@@ -11,6 +9,6 @@ public partial class DependencyTreeControl
     {
         InitializeComponent();
 
-        DataContext = new DependencyTreeViewModel(SolutionService.Instance);
+        DataContext = new DependencyTreeViewModel();
     }
 }

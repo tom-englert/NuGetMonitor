@@ -11,6 +11,6 @@ public sealed partial class NuGetMonitorControl
     {
         InitializeComponent();
 
-        DataContext = new NuGetMonitorViewModel(SolutionService.Instance);
+        DataContext = new NuGetMonitorViewModel();
     }
 }

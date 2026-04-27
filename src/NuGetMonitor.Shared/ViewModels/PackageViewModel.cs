@@ -1,9 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Input;
-using Microsoft.VisualStudio.Shell;
 using NuGet.Versioning;
-using NuGetMonitor.Abstractions;
 using NuGetMonitor.Model.Models;
 using NuGetMonitor.Model.Services;
 using NuGetMonitor.View.Monitor;
@@ -18,13 +16,13 @@ internal sealed partial class PackageViewModel : INotifyPropertyChanged
 {
     private readonly NuGetMonitorViewModel _parent;
 
-    public PackageViewModel(NuGetMonitorViewModel parent, IGrouping<PackageReference, PackageReferenceEntry> items, PackageItemType itemType, ISolutionService solutionService)
+    public PackageViewModel(NuGetMonitorViewModel parent, IGrouping<PackageReference, PackageReferenceEntry> items, PackageItemType itemType)
     {
         _parent = parent;
 
         Items = items;
         PackageReference = items.Key;
-        Projects = items.GroupBy(item => (itemType == PackageItemType.PackageVersion ? item.VersionSource : item.ProjectItemInTargetFramework.ProjectItem).GetContainingProject()).Select(item => new ProjectViewModel(item.Key, solutionService)).ToArray();
+        Projects = items.GroupBy(item => (itemType == PackageItemType.PackageVersion ? item.VersionSource : item.ProjectItemInTargetFramework.ProjectItem).GetContainingProject()).Select(item => new ProjectViewModel(item.Key)).ToArray();
         ActiveVersion = NuGetVersion.TryParse(PackageReference.VersionRange.OriginalString, out var simpleVersion) ? simpleVersion : PackageReference.VersionRange;
         Justifications = string.Join(", ", Items.Select(reference => reference.Justification).Distinct());
         IsPinned = items.Key.IsPinned;
