@@ -22,23 +22,106 @@
       <TextBlock Text="{Binding StatusMessage}" Foreground="White" FontSize="12" />
     </Border>
 
-    <!-- Main content with TabControl -->
-    <TabControl>
-      <TabItem Header="Packages">
-        <monitor:NuGetMonitorControl DataContext="{Binding NuGetMonitorViewModel}" />
-      </TabItem>
-      <!-- Additional tabs can be added here in the future -->
-    </TabControl>
+    <!-- Main content area with Grid for splitters -->
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="150" MinHeight="50" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="250" MinWidth="100" />
+      </Grid.ColumnDefinitions>
 
-    <!-- Loading overlay -->
-    <Grid IsVisible="{Binding IsLoading}"
-          Background="#80000000"
-          HorizontalAlignment="Stretch"
-          VerticalAlignment="Stretch"
-          ZIndex="1000">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-        <TextBlock Text="Loading packages…" Foreground="White" FontSize="16" HorizontalAlignment="Center" />
-      </StackPanel>
+      <!-- Main content with TabControl -->
+      <TabControl Grid.Row="0" Grid.Column="0">
+        <TabItem Header="Packages">
+          <monitor:NuGetMonitorControl DataContext="{Binding NuGetMonitorViewModel}" />
+        </TabItem>
+        <!-- Additional tabs can be added here in the future -->
+      </TabControl>
+
+      <!-- Vertical GridSplitter (between main content and info panel) -->
+      <GridSplitter Grid.Row="0" 
+                    Grid.Column="1" 
+                    Width="4" 
+                    VerticalAlignment="Stretch" 
+                    Background="#E0E0E0" />
+
+      <!-- Info Panel (right side) -->
+      <Border Grid.Row="0" 
+              Grid.Column="2" 
+              BorderBrush="#CCCCCC" 
+              BorderThickness="1,0,0,0" 
+              Background="White">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" 
+                     Text="Info Messages" 
+                     FontWeight="Bold" 
+                     Foreground="Black" 
+                     Padding="8,4" 
+                     Background="#F0F0F0" />
+          <ListBox ItemsSource="{Binding InfoBarMessages}" 
+                   Background="White"
+                   Padding="4">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding FormattedMessage}" 
+                           Foreground="Black" 
+                           FontSize="12"
+                           TextWrapping="Wrap" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <!-- Horizontal GridSplitter (between main content and log panel) -->
+      <GridSplitter Grid.Row="1" 
+                    Grid.Column="0"
+                    Grid.ColumnSpan="3"
+                    Height="4" 
+                    HorizontalAlignment="Stretch" 
+                    Background="#E0E0E0" />
+
+      <!-- Logging Panel (bottom) -->
+      <Border Grid.Row="2" 
+              Grid.Column="0"
+              Grid.ColumnSpan="3"
+              BorderBrush="#CCCCCC" 
+              BorderThickness="0,1,0,0" 
+              Background="White">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" 
+                     Text="Logs" 
+                     FontWeight="Bold" 
+                     Foreground="Black" 
+                     Padding="8,4" 
+                     Background="#F0F0F0" />
+          <ListBox ItemsSource="{Binding LogEntries}" 
+                   Background="White"
+                   Padding="4">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="Padding" Value="4,1" />
+                <Setter Property="MinHeight" Value="0" />
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding FormattedMessage}" 
+                           Foreground="Black" 
+                           FontFamily="Consolas,Courier New,monospace"
+                           FontSize="12"
+                           LineHeight="16" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
     </Grid>
 
   </DockPanel>
