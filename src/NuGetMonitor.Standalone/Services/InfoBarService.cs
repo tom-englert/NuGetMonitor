@@ -9,7 +9,9 @@ internal sealed class InfoBarService
 
     public ReadOnlyObservableCollection<InfoBarMessage> Messages { get; }
 
-    public InfoBarService()
+    public static readonly InfoBarService Instance = new();
+
+    private InfoBarService()
     {
         Messages = new(_messages);
     }

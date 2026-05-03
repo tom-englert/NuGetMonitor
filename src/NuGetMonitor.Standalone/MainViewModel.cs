@@ -10,7 +10,7 @@ namespace NuGetMonitor;
 internal sealed partial class MainViewModel : INotifyPropertyChanged
 {
     private readonly LoggerSink _loggerSink;
-    private readonly InfoBarService _infoBarService;
+    private readonly InfoBarService _infoBarService = InfoBarService.Instance;
     private readonly MonitorService _monitorService;
 
     public string? SolutionPath { get; private set; }
@@ -31,8 +31,6 @@ internal sealed partial class MainViewModel : INotifyPropertyChanged
     {
         _loggerSink = new LoggerSink();
         LoggerService.AddSink(_loggerSink);
-
-        _infoBarService = new InfoBarService();
 
         _monitorService = new MonitorService(_infoBarService);
         _monitorService.RegisterEventHandlers();

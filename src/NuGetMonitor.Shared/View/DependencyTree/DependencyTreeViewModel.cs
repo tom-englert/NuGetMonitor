@@ -1,15 +1,16 @@
-﻿using System.ComponentModel;
-using System.Windows;
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Threading;
 using NuGet.Frameworks;
 using NuGet.Packaging.Core;
 using NuGetMonitor.Abstractions;
 using NuGetMonitor.Model.Models;
 using NuGetMonitor.Model.Services;
+using NuGetMonitor.Services;
 using PropertyChanged;
 using Throttle;
+using TomsToolbox.ObservableCollections;
 
 namespace NuGetMonitor.View.DependencyTree;
 
@@ -71,7 +72,7 @@ internal sealed partial class ChildNode : INotifyPropertyChanged
 
         var justification = node == PackageNode.PackageMitigation ? "Justification=\"TODO\" " : string.Empty;
 
-        Clipboard.SetText($"""<{node} Include="{PackageIdentity.Id}" Version="{version}" {justification}/>""");
+        ClipboardService.SetText($"""<{node} Include="{PackageIdentity.Id}" Version="{version}" {justification}/>""");
 
         if (node == PackageNode.PackageReference)
         {
@@ -104,7 +105,8 @@ internal sealed partial class ChildNode : INotifyPropertyChanged
 internal sealed partial class RootNode : INotifyPropertyChanged
 {
     private readonly TransitiveDependencies _transitiveDependencies;
-    private readonly ListCollectionView _children;
+    private readonly HashSet<ChildNode> _allChildren;
+    private readonly ObservableCollection<ChildNode> _children;
 
     public RootNode(TransitiveDependencies transitiveDependencies)
     {
@@ -113,37 +115,57 @@ internal sealed partial class RootNode : INotifyPropertyChanged
         var children = _transitiveDependencies.TransitivePackages
             .OrderBy(item => item.PackageIdentity)
             .Select(item => new ChildNode(item, _transitiveDependencies))
-            .ToArray();
+            .ToHashSet();
 
-        _children = new ListCollectionView(children);
+        _allChildren = children;
+
+        _children = new ObservableCollection<ChildNode>(children);
     }
 
     public string ProjectName => _transitiveDependencies.ProjectName;
 
     public NuGetFramework TargetFramework => _transitiveDependencies.TargetFramework;
 
-    public ICollectionView Children => _children;
+    public ObservableCollection<ChildNode> Children => _children;
 
     public void SetFilter(string? searchText, bool showUpToDate, bool showOutdated, bool showVulnerable)
     {
         if (searchText.IsNullOrWhiteSpace() && showUpToDate && showOutdated && showVulnerable)
         {
-            _children.Filter = null;
+            SetChildren(_allChildren);
             return;
         }
 
-        _children.Filter = item =>
+        bool Filter(ChildNode item)
         {
-            var childNode = (ChildNode)item;
-            var packageIdentity = childNode.PackageIdentity;
-            var isOutdated = childNode.IsOutdated;
-            var isVulnerable = childNode.IsVulnerable;
+            var packageIdentity = item.PackageIdentity;
+            var isOutdated = item.IsOutdated;
+            var isVulnerable = item.IsVulnerable;
 
             return (searchText.IsNullOrWhiteSpace() || packageIdentity.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
-                && (showUpToDate || isOutdated || isVulnerable)
-                && (showOutdated || !isOutdated || isVulnerable)
-                && (showVulnerable || !isVulnerable);
-        };
+                   && (showUpToDate || isOutdated || isVulnerable)
+                   && (showOutdated || !isOutdated || isVulnerable)
+                   && (showVulnerable || !isVulnerable);
+        }
+
+        SetChildren(_allChildren.Where(Filter).ToHashSet());
+    }
+
+    private void SetChildren(HashSet<ChildNode> children)
+    {
+        var index = 0;
+
+        _children.RemoveWhere(child => !children.Contains(child));
+
+        foreach (var child in children)
+        {
+            if (_children[index] != child)
+            {
+                _children.Insert(index, child);
+            }
+
+            index += 1;
+        }
     }
 }
 
@@ -157,9 +179,11 @@ internal sealed partial class DependencyTreeViewModel : INotifyPropertyChanged
 
 #pragma warning disable VSTHRD001
 #pragma warning disable VSTHRD110
-        Dispatcher.CurrentDispatcher.BeginInvoke(() => Load().FireAndForget());
+#pragma warning disable VSSDK008
+        DispatcherExtensions.CurrentDispatcher.BeginInvoke(() => Load().FireAndForget());
 #pragma warning restore VSTHRD110
 #pragma warning restore VSTHRD001
+#pragma warning restore VSTHRD008
     }
 
     public bool IsLoading { get; set; }

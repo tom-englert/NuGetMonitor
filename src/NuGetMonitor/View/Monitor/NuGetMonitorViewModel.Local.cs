@@ -6,12 +6,17 @@ using Community.VisualStudio.Toolkit;
 using DataGridExtensions;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
+using NuGetMonitor.Abstractions;
 using NuGetMonitor.Services;
 
 namespace NuGetMonitor.View.Monitor;
 
 partial class NuGetMonitorViewModel
 {
+    public static ICommand ShowDependencyTreeCommand => new DelegateCommand(ShowDependencyTree);
+
+    public static ICommand ShowNuGetPackageManagerCommand => new DelegateCommand(() => PlatformAbstractions.ShowPackageManager());
+
     private static void ShowDependencyTree()
     {
         NuGetMonitorCommands.Instance?.ShowDependencyTreeToolWindow();
@@ -39,26 +44,6 @@ partial class NuGetMonitorViewModel
             return false;
 
         return true;
-    }
-
-    private bool CanCopyIssueDetails()
-    {
-        return Packages?.Any(p => p.PackageInfo?.HasIssues ?? false) == true;
-    }
-
-    private void CopyIssueDetails()
-    {
-        if (Packages is null)
-            return;
-
-        var text = new StringBuilder();
-
-        foreach (var package in Packages)
-        {
-            package.PackageInfo?.AppendIssueDetails(text);
-        }
-
-        Clipboard.SetText(text.ToString());
     }
 }
 

@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel.Design;
+using Microsoft.VisualStudio.Debugger.Interop;
 using Microsoft.VisualStudio.Shell;
+using NuGetMonitor.Model.Services;
 using NuGetMonitor.View.DependencyTree;
 using NuGetMonitor.View.Monitor;
 

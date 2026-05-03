@@ -1,7 +1,4 @@
-﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Windows.Input;
-using Microsoft.Build.Construction;
+﻿using Microsoft.Build.Construction;
 using Microsoft.Build.Evaluation;
 using NuGet.Packaging.Core;
 using NuGet.Versioning;
@@ -10,6 +7,11 @@ using NuGetMonitor.Model;
 using NuGetMonitor.Model.Models;
 using NuGetMonitor.Model.Services;
 using NuGetMonitor.ViewModels;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Text;
+using System.Windows.Input;
+using NuGetMonitor.Services;
 
 namespace NuGetMonitor.View.Monitor;
 
@@ -39,15 +41,9 @@ internal sealed partial class NuGetMonitorViewModel : INotifyPropertyChanged
 
     public ICommand UpdateSelectedCommand => new DelegateCommand(() => SelectedPackages.Any(item => item.IsUpdateAvailable), UpdateSelected);
 
-    /*
-    public static ICommand ShowDependencyTreeCommand => new DelegateCommand(ShowDependencyTree);
-
-    public ICommand ShowNuGetPackageManagerCommand => new DelegateCommand(() => PlatformAbstractions.ShowPackageManager());
+    public ICommand NormalizePackageReferencesCommand => new DelegateCommand(NormalizePackageReferences);
 
     public ICommand CopyIssueDetailsCommand => new DelegateCommand(CanCopyIssueDetails, CopyIssueDetails);
-
-    public ICommand NormalizePackageReferencesCommand => new DelegateCommand(NormalizePackageReferences);
-    */
 
     private void SolutionEvents_OnAfterOpenSolution(object? sender, EventArgs e)
     {
@@ -258,5 +254,26 @@ internal sealed partial class NuGetMonitorViewModel : INotifyPropertyChanged
     private static async Task ShowInfoBar(string text)
     {
         await PlatformAbstractions.ShowInfoBar(text);
+    }
+
+    private bool CanCopyIssueDetails()
+    {
+        return Packages?.Any(p => p.PackageInfo?.HasIssues ?? false) == true;
+    }
+
+    private void CopyIssueDetails()
+    {
+        if (Packages is null)
+            return;
+
+        var text = new StringBuilder();
+
+        foreach (var package in Packages)
+        {
+            package.PackageInfo?.AppendIssueDetails(text);
+        }
+
+        // Copy to clipboard
+        ClipboardService.SetText(text.ToString());
     }
 }

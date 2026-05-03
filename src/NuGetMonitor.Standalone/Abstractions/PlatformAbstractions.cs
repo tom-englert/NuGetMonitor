@@ -1,4 +1,5 @@
 ﻿using Microsoft.Build.Construction;
+using NuGetMonitor.Services;
 
 namespace NuGetMonitor.Abstractions;
 
@@ -74,10 +75,9 @@ internal static class PlatformAbstractions
 
     public static async Task ShowInfoBar(string message)
     {
-        // In standalone mode, we could show this in a message box or status bar
-        // For now, just log to console
+        InfoBarService.Instance.ShowMessage(message);
+
         await Task.CompletedTask;
-        Console.WriteLine($"InfoBar: {message}");
     }
 
     public static void FireAndForget(this System.Threading.Tasks.Task task, bool logOnFailure = true)
